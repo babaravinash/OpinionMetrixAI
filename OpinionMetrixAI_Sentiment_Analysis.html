@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpinionMetrix AI | Sentiment Analysis</title>
+<style>
+:root{--bg:#0b1020;--panel:#131b30;--panel2:#19243d;--text:#edf2ff;--muted:#9ba9c7;--accent:#8b9cff;--line:#283653;--green:#39d6a0;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#1c2b50 0,transparent 42%),var(--bg);color:var(--text);font:15px/1.5 Inter,system-ui,Segoe UI,Arial,sans-serif;min-height:100vh}
+main{max-width:1080px;margin:auto;padding:38px 22px 60px}.top{display:flex;align-items:center;gap:13px;margin-bottom:30px}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#7c8cff,#b28aff);display:grid;place-items:center;font-size:24px;box-shadow:0 8px 28px #8290ff44}
+h1{font-size:clamp(25px,4vw,36px);line-height:1.15;margin:0;letter-spacing:-.8px}.sub{color:var(--muted);margin:6px 0 0}.tag{margin-left:auto;border:1px solid #355b56;color:#8ef0ce;border-radius:99px;padding:6px 11px;font-size:12px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:1.25fr .75fr;gap:18px}.card{background:linear-gradient(160deg,#17223a,#111a2d);border:1px solid var(--line);border-radius:19px;padding:22px;box-shadow:0 15px 45px #0002}
+h2{font-size:18px;margin:0 0 7px}p.hint{color:var(--muted);font-size:13px;margin:0 0 16px}
+textarea{width:100%;min-height:180px;resize:vertical;background:#0c1427;border:1px solid #31415f;border-radius:12px;color:var(--text);padding:15px;font:inherit;outline:none}textarea:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #8b9cff20}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}button,.filelabel{border:0;border-radius:11px;padding:11px 16px;font-weight:650;cursor:pointer;font:inherit}.primary{background:linear-gradient(135deg,#8292ff,#a68cff);color:#0b1020}.secondary,.filelabel{background:#202d49;color:#dce5ff;border:1px solid #344564}.primary:disabled{opacity:.45;cursor:not-allowed}button:hover:not(:disabled),.filelabel:hover{filter:brightness(1.12)}
+.status{margin-top:15px;color:var(--muted);font-size:13px;min-height:20px}.bar{height:7px;background:#273653;border-radius:99px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;width:0;background:linear-gradient(90deg,#6c83ff,#40d6aa);transition:width .3s}
+.result{display:none;margin-top:18px;padding:17px;border:1px solid var(--line);border-radius:13px;background:#0d172a}.result.show{display:block}.resultline{display:flex;justify-content:space-between;align-items:center;gap:10px}.sentiment{font-size:22px;font-weight:750}.positive{color:var(--green)}.negative{color:var(--red)}.neutral{color:#f6c96b}.score{color:var(--muted);font-size:13px}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}.metric{background:#0d172a;border:1px solid var(--line);border-radius:12px;padding:13px}.metric strong{display:block;font-size:24px}.metric span{color:var(--muted);font-size:12px}
+input[type=file]{display:none}.batch{margin-top:18px}.tablewrap{overflow:auto;margin-top:14px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}th{color:#b9c7e6}td{color:#dce5ff}.foot{color:#8190af;font-size:12px;text-align:center;margin-top:24px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.tag{display:none}.metrics{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="logo">✦</div>
+    <div><h1>OpinionMetrix AI</h1><p class="sub">Customer feedback intelligence · Sentiment analysis</p></div>
+    <div class="tag" id="modelTag">AI model · Loading</div>
+  </header>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Analyze a customer review</h2>
+      <p class="hint">Enter feedback below and let the AI classify its sentiment.</p>
+      <textarea id="review" placeholder="Example: The product quality is excellent. Delivery was quick and the support team was very helpful."></textarea>
+      <div class="actions">
+        <button class="primary" id="analyzeBtn" disabled>Analyze sentiment</button>
+        <button class="secondary" id="clearBtn">Clear</button>
+      </div>
+      <div class="status" id="status">Preparing the AI model. The first load needs an internet connection.</div>
+      <div class="result" id="result">
+        <div class="resultline"><span class="sentiment" id="sentiment">Positive</span><span class="score" id="confidence">Confidence: --</span></div>
+        <div class="bar"><span id="confidenceBar"></span></div>
+      </div>
+    </div>
+
+    <aside class="card">
+      <h2>Model information</h2>
+      <p class="hint">Transformer-based text classification running in your browser.</p>
+      <div class="metric"><strong>DistilBERT</strong><span>Pretrained sentiment model</span></div>
+      <div class="metrics">
+        <div class="metric"><strong>2</strong><span>Sentiment classes</span></div>
+        <div class="metric"><strong>AI</strong><span>Inference in browser</span></div>
+      </div>
+      <div class="status">Predictions: Positive or Negative. Best suited to English-language feedback. Model confidence is not a guarantee of correctness.</div>
+    </aside>
+  </section>
+
+  <section class="card batch">
+    <h2>Batch analysis</h2>
+    <p class="hint">Upload a CSV containing a column named <b>review</b> or <b>text</b>. Results can be downloaded as a new CSV.</p>
+    <div class="actions">
+      <label class="filelabel" for="csvFile">Choose CSV file</label>
+      <input id="csvFile" type="file" accept=".csv,text/csv">
+      <button class="primary" id="downloadBtn" disabled>Download results CSV</button>
+    </div>
+    <div class="status" id="batchStatus">No file selected.</div>
+    <div class="metrics" id="batchMetrics" style="display:none">
+      <div class="metric"><strong id="totalCount">0</strong><span>Analyzed</span></div>
+      <div class="metric"><strong id="positiveCount" class="positive">0</strong><span>Positive</span></div>
+      <div class="metric"><strong id="negativeCount" class="negative">0</strong><span>Negative</span></div>
+    </div>
+    <div class="tablewrap" id="tableWrap"></div>
+  </section>
+  <p class="foot">OpinionMetrix AI · Prototype for demonstration and learning. Review AI predictions before business use.</p>
+</main>
+
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+env.allowLocalModels = false;
+const $ = id => document.getElementById(id);
+let classifier = null;
+let batchResults = [];
+
+async function initialize(){
+  try{
+    $('status').textContent = 'Downloading/loading sentiment model. This may take a few minutes on first use...';
+    classifier = await pipeline('sentiment-analysis','Xenova/distilbert-base-uncased-finetuned-sst-2-english');
+    $('modelTag').textContent = 'AI model · Ready';
+    $('status').textContent = 'Model ready. Enter a review to begin.';
+    $('analyzeBtn').disabled = false;
+  }catch(err){
+    $('modelTag').textContent = 'AI model · Error';
+    $('status').textContent = 'Model could not load. Check your internet connection and reload this page.';
+    console.error(err);
+  }
+}
+function showPrediction(pred){
+  const positive = pred.label.toUpperCase() === 'POSITIVE';
+  $('sentiment').textContent = positive ? 'Positive sentiment' : 'Negative sentiment';
+  $('sentiment').className = 'sentiment ' + (positive ? 'positive' : 'negative');
+  $('confidence').textContent = 'Confidence: ' + (pred.score*100).toFixed(1) + '%';
+  $('confidenceBar').style.width = (pred.score*100).toFixed(1) + '%';
+  $('result').classList.add('show');
+}
+$('analyzeBtn').addEventListener('click', async()=>{
+  const text = $('review').value.trim();
+  if(!text || !classifier) return;
+  $('analyzeBtn').disabled = true;
+  $('status').textContent = 'Analyzing review...';
+  try{
+    const output = await classifier(text, {truncation:true});
+    showPrediction(output[0]);
+    $('status').textContent = 'Analysis complete.';
+  }catch(err){$('status').textContent='Could not analyze this text: '+err.message;}
+  $('analyzeBtn').disabled = false;
+});
+$('clearBtn').addEventListener('click',()=>{
+  $('review').value='';$('result').classList.remove('show');$('status').textContent='Ready for another review.';
+});
+function parseCSV(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i],n=text[i+1];
+    if(c==='"' && quoted && n==='"'){cell+='"';i++;}
+    else if(c==='"'){quoted=!quoted;}
+    else if(c===',' && !quoted){row.push(cell);cell='';}
+    else if((c==='\n'||c==='\r')&&!quoted){
+      if(c==='\r'&&n==='\n')i++;
+      row.push(cell);if(row.some(v=>v.trim()))rows.push(row);row=[];cell='';
+    }else cell+=c;
+  }
+  row.push(cell);if(row.some(v=>v.trim()))rows.push(row);
+  return rows;
+}
+function csvEscape(v){const s=String(v??'');return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+$('csvFile').addEventListener('change', async e=>{
+  const file=e.target.files[0];if(!file)return;
+  if(!classifier){$('batchStatus').textContent='Wait until the AI model has loaded.';return;}
+  $('batchStatus').textContent='Reading CSV...';
+  try{
+    const rows=parseCSV(await file.text());
+    if(rows.length<2)throw new Error('CSV has no review rows.');
+    const headers=rows[0].map(x=>x.trim());
+    const index=headers.findIndex(x=>['review','text'].includes(x.toLowerCase()));
+    if(index<0)throw new Error("CSV must contain a 'review' or 'text' column.");
+    const records=rows.slice(1).filter(r=>(r[index]||'').trim());
+    batchResults=[];
+    for(let i=0;i<records.length;i++){
+      $('batchStatus').textContent=`Analyzing review ${i+1} of ${records.length}...`;
+      const prediction=(await classifier(records[i][index],{truncation:true}))[0];
+      batchResults.push([...records[i],prediction.label.toUpperCase()==='POSITIVE'?'Positive':'Negative',(prediction.score*100).toFixed(2)+'%']);
+    }
+    const outHeaders=[...headers,'sentiment','confidence'];
+    $('tableWrap').innerHTML='<table><thead><tr>'+outHeaders.map(h=>'<th>'+escapeHTML(h)+'</th>').join('')+'</tr></thead><tbody>'+
+      batchResults.slice(0,100).map(r=>'<tr>'+r.map(v=>'<td>'+escapeHTML(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+    const pos=batchResults.filter(r=>r.at(-2)==='Positive').length,neg=batchResults.length-pos;
+    $('totalCount').textContent=batchResults.length;$('positiveCount').textContent=pos;$('negativeCount').textContent=neg;
+    $('batchMetrics').style.display='grid';$('downloadBtn').disabled=batchResults.length===0;
+    $('batchStatus').textContent=`Completed: ${batchResults.length} reviews analyzed. Showing up to 100 rows below.`;
+    window.csvHeaders=outHeaders;
+  }catch(err){$('batchStatus').textContent=err.message;}
+});
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$('downloadBtn').addEventListener('click',()=>{
+  const csv=[window.csvHeaders,...batchResults].map(r=>r.map(csvEscape).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='opinionmetrix_sentiment_results.csv';a.click();URL.revokeObjectURL(url);
+});
+initialize();
+</script>
+</body>
+</html>
